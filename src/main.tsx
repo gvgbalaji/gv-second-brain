@@ -210,8 +210,8 @@ function Bubble() {
     <div className="bubble-shell">
       <button
         className="brain-bubble"
-        aria-label="Open or collapse Second Brain. Drag to move."
-        title="Second Brain · Ctrl+?"
+        aria-label="Open or collapse Second Brain. Drag to move. Right-click for the quit menu."
+        title="Second Brain · Click to open · Drag to move · Right-click to quit"
         onPointerDown={(event) => {
           if (event.button !== 0) return;
           event.preventDefault();

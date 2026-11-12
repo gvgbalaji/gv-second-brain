@@ -196,6 +196,14 @@ function createWindows() {
   bubble.webContents.on("page-title-updated", (event) =>
     event.preventDefault(),
   );
+  bubble.webContents.on("context-menu", () => {
+    finishBubbleDrag(false);
+    Menu.buildFromTemplate([
+      { label: "Open Second Brain", click: showMain },
+      { type: "separator" },
+      { label: "Quit Second Brain", click: () => app.quit() },
+    ]).popup({ window: bubble });
+  });
   bubble.once("ready-to-show", () => revealBubble());
   placeBubble();
   load(bubble, "bubble");
