@@ -1,0 +1,14 @@
+node_modules/
+dist/
+release/
+*.log
+.venv/
+
+# Local secrets and personal application data
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite-*
+*.sock
+.DS_Store

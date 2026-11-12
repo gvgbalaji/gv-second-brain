@@ -1,0 +1,63 @@
+{
+  "name": "gv-second-brain",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A personal desktop memory, scheduler, and learning companion",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "vite build",
+    "start": "node scripts/start.mjs",
+    "check": "tsc --noEmit",
+    "test": "node --test electron/core.test.cjs",
+    "dist": "npm run build && electron-builder --linux --dir",
+    "format": "prettier --write src electron scripts vite.config.ts tsconfig.json package.json index.html",
+    "install:desktop": "node scripts/install-desktop.mjs",
+    "test:desktop": "npm run build && node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "electron": "^45.3.1",
+    "electron-builder": "^26.0.12",
+    "prettier": "^3.10.1",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.1"
+  },
+  "build": {
+    "appId": "com.gv.secondbrain",
+    "productName": "Second Brain",
+    "files": [
+      "dist/**/*",
+      "electron/main.cjs",
+      "electron/preload.cjs",
+      "electron/core.cjs",
+      "electron/codex.cjs",
+      "electron/service.cjs",
+      "package.json",
+      "electron/models.cjs",
+      "electron/shortcuts.cjs"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "linux": {
+      "category": "Office",
+      "target": "AppImage",
+      "executableArgs": [
+        "--ozone-platform=x11"
+      ]
+    }
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}
