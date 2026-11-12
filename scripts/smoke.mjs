@@ -257,6 +257,80 @@ try {
       "gpt-6-luna",
     ),
   );
+  // Clipboard Files use a blob URL during decoding; test the actual editor path.
+  await evaluate(
+    `Array.from(document.querySelectorAll('button')).find(b=>b.textContent.trim()==='New record').click()`,
+  );
+  await evaluate(`document.querySelector('.form-body textarea').focus()`);
+  await call("Input.insertText", {
+    text: "A pasted diagram with original text preserved.",
+  });
+  await evaluate(
+    `(()=>{const canvas=document.createElement('canvas');canvas.width=24;canvas.height=24;canvas.getContext('2d').fillRect(0,0,24,24);const bytes=Uint8Array.from(atob(canvas.toDataURL('image/png').split(',')[1]),c=>c.charCodeAt(0));const data=new DataTransfer();data.items.add(new File([bytes],'clipboard.png',{type:'image/png'}));document.querySelector('.form-body textarea').dispatchEvent(new ClipboardEvent('paste',{clipboardData:data,bubbles:true,cancelable:true}));})()`,
+  );
+  await waitFor(
+    () =>
+      evaluate(
+        `(()=>{const img=document.querySelector('.image-previews img');return !!img && img.complete && img.naturalWidth===24;})()`,
+      ),
+    "pasted clipboard image decodes and previews",
+  );
+  assert.equal(
+    await evaluate(`document.querySelector('.form-body textarea').value`),
+    "A pasted diagram with original text preserved.",
+  );
+  await evaluate(`document.querySelector('.form-actions .primary').click()`);
+  await waitFor(
+    async () =>
+      (await invoke("snapshot")).records.some(
+        (r) => r.images.length === 1 && r.status === "ready",
+      ),
+    "pasted image saved and understood",
+  );
+  const imageRecord = (await invoke("snapshot")).records.find(
+    (r) => r.images.length,
+  );
+  const storedImage = await invoke("image", imageRecord.images[0]);
+  assert.ok(storedImage.startsWith("data:image/png;base64,"));
+  assert.ok(
+    JSON.parse(fs.readFileSync(path.join(dir, "last-call.json"))).includes(
+      "--image",
+    ),
+    "Codex receives the saved image attachment",
+  );
+  await waitFor(
+    () =>
+      evaluate(
+        `!!document.querySelector('.record-detail .record-images img')?.naturalWidth`,
+      ),
+    "saved attachment reloads from the image store",
+  );
+  await evaluate(
+    `document.querySelector('[aria-label="Edit record"]').click()`,
+  );
+  await waitFor(
+    () =>
+      evaluate(`!!document.querySelector('.image-previews img')?.naturalWidth`),
+    "existing record shows its saved image in the editor",
+  );
+  await evaluate(
+    `document.querySelector('[aria-label="Remove image"]').click()`,
+  );
+  assert.equal(
+    await evaluate(
+      `!!document.querySelector('.form-body textarea') && document.querySelectorAll('.image-previews img').length===0`,
+    ),
+    true,
+    "Removing an attachment does not submit the record",
+  );
+  assert.equal(
+    (await invoke("snapshot")).records.find((r) => r.id === imageRecord.id)
+      .images.length,
+    1,
+    "Unsaved attachment edits do not change stored data",
+  );
+  await evaluate(`document.querySelector('.modal-head button').click()`);
+  await invoke("deleteRecord", imageRecord.id);
   await invoke("setModel", "gpt-6.1-sol");
   const parsed = await invoke("parseSchedule", "Review my notes every hour");
   assert.equal(parsed.schedule.minutes, 60);
@@ -379,7 +453,7 @@ try {
   );
   assert.equal(errors.length, 0, JSON.stringify(errors));
   console.log(
-    "Electron integration passed: records, scheduler, chat citations, Enter submission, follow-up Enter, send button, learning cards, CRUD, navigation, and no renderer exceptions.",
+    "Electron integration passed: pasted-image preview, persistence, Codex attachment, safe removal, records, scheduler, chat, learning, navigation, and no renderer exceptions.",
   );
 } finally {
   ws?.close();

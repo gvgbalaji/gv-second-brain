@@ -98,6 +98,7 @@ function IconButton({
 }) {
   return (
     <button
+      type="button"
       className="icon-button"
       title={label}
       aria-label={label}
@@ -1628,9 +1629,12 @@ function RecordEditor({
   const [title, setTitle] = useState(record?.title || ""),
     [content, setContent] = useState(record?.content || ""),
     [images, setImages] = useState<string[]>(record?.images || []),
+    [pendingImages, setPendingImages] = useState(0),
     [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const addFiles = async (files: File[]) => {
+    if (!files.length) return;
+    setPendingImages((value) => value + 1);
     try {
       if (files.length + images.length > 6)
         throw new Error("Attach up to 6 images.");
@@ -1645,18 +1649,32 @@ function RecordEditor({
               const image = new Image(),
                 url = URL.createObjectURL(file);
               image.onload = () => {
-                const canvas = document.createElement("canvas");
-                const ratio = Math.min(
-                  1,
-                  2400 / Math.max(image.width, image.height),
-                );
-                canvas.width = image.width * ratio;
-                canvas.height = image.height * ratio;
-                canvas
-                  .getContext("2d")!
-                  .drawImage(image, 0, 0, canvas.width, canvas.height);
-                URL.revokeObjectURL(url);
-                resolve(canvas.toDataURL("image/png"));
+                try {
+                  const canvas = document.createElement("canvas");
+                  const ratio = Math.min(
+                    1,
+                    2400 / Math.max(image.naturalWidth, image.naturalHeight),
+                  );
+                  canvas.width = Math.max(
+                    1,
+                    Math.round(image.naturalWidth * ratio),
+                  );
+                  canvas.height = Math.max(
+                    1,
+                    Math.round(image.naturalHeight * ratio),
+                  );
+                  const context = canvas.getContext("2d");
+                  if (!context)
+                    throw new Error(
+                      "Could not prepare the image. Please try again.",
+                    );
+                  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+                  resolve(canvas.toDataURL("image/png"));
+                } catch (error) {
+                  reject(error);
+                } finally {
+                  URL.revokeObjectURL(url);
+                }
               };
               image.onerror = () => {
                 URL.revokeObjectURL(url);
@@ -1670,6 +1688,8 @@ function RecordEditor({
       setError("");
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setPendingImages((value) => value - 1);
     }
   };
   return (
@@ -1681,7 +1701,8 @@ function RecordEditor({
         className="form-body"
         onSubmit={(e) => {
           e.preventDefault();
-          void onSave({ id: record?.id, title, content, images });
+          if (!pendingImages && !busy)
+            void onSave({ id: record?.id, title, content, images });
         }}
         onPaste={(e) => {
           const files = Array.from(e.clipboardData.files);
@@ -1717,12 +1738,15 @@ function RecordEditor({
           <button
             type="button"
             className="secondary"
+            disabled={pendingImages > 0}
             onClick={() => input.current?.click()}
           >
             <ImagePlus size={16} />
             Add image
           </button>
-          <span>Paste images with Ctrl + V</span>
+          <span aria-live="polite">
+            {pendingImages ? "Reading image…" : "Paste images with Ctrl + V"}
+          </span>
           <input
             ref={input}
             type="file"
@@ -1759,7 +1783,9 @@ function RecordEditor({
           </button>
           <button
             className="primary"
-            disabled={busy || (!content.trim() && !images.length)}
+            disabled={
+              busy || pendingImages > 0 || (!content.trim() && !images.length)
+            }
           >
             {busy ? (
               <Loader2 size={16} className="spin" />

@@ -150,11 +150,12 @@ function createWindows() {
     hasShadow: false,
     webPreferences: { ...prefs, partition: "persist:brain-bubble" },
   });
-  bubble.webContents.setZoomFactor(1);
-  bubble.webContents.setVisualZoomLevelLimits(1, 1);
-  bubble.webContents.on("did-finish-load", () =>
-    bubble.webContents.setZoomFactor(1),
-  );
+  bubble.webContents.on("did-finish-load", () => {
+    bubble.webContents.setZoomFactor(1);
+    void bubble.webContents
+      .setVisualZoomLevelLimits(1, 1)
+      .catch((error) => console.error("Bubble zoom setup:", error.message));
+  });
   bubble.webContents.on("before-input-event", (event, input) => {
     if (
       (input.control || input.meta) &&
