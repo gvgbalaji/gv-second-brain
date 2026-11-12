@@ -14,7 +14,9 @@
     "dist": "npm run build && electron-builder --linux --dir",
     "format": "prettier --write src electron scripts vite.config.ts tsconfig.json package.json index.html",
     "install:desktop": "node scripts/install-desktop.mjs",
-    "test:desktop": "npm run build && node scripts/smoke.mjs"
+    "test:desktop": "npm run build && node scripts/smoke.mjs",
+    "install:startup": "node scripts/install-startup.mjs",
+    "install:sandbox": "node scripts/install-sandbox-profile.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
@@ -44,7 +46,8 @@
       "electron/service.cjs",
       "package.json",
       "electron/models.cjs",
-      "electron/shortcuts.cjs"
+      "electron/shortcuts.cjs",
+      "electron/local-manager.cjs"
     ],
     "directories": {
       "output": "release"

@@ -44,12 +44,31 @@ For development, run `npm run dev`. On Linux, `npm run install:desktop` adds Sec
 
 Open **Settings** to set an absolute Codex executable path if desktop apps cannot find your shell's PATH. Luna (`gpt-6-luna`) is the default. Use the model selector in the top bar for any new request, or choose a default under Settings. The selector reads your Codex model catalog; Settings also accepts a custom model ID. The selection applies to records, chat, schedules, and learning guides. **Check saved connection** checks the CLI version and authentication status without making an LLM call.
 
+## Start automatically on Linux
+
+Enable the brain bubble at graphical login:
+
+```sh
+npm run install:startup
+```
+
+This installs a per-user XDG autostart entry at `~/.config/autostart/second-brain.desktop`. The bubble appears after login while the workspace stays hidden. Click the bubble or use Ctrl + ? to open it. Running a second background instance keeps the existing workspace hidden. Remove the autostart file to disable login startup. When registered as the Second Brain desktop app in LocalAM, a standalone startup instance also reports its PID to LocalAM so it can show running status and stop it. Instances already launched in a manager-owned process group keep the manager’s existing tracking.
+
+If Ubuntu blocks Electron with a sandbox-helper or user-namespace error, install the app-specific AppArmor profile:
+
+```sh
+npm run install:sandbox
+```
+
+This validates the profile, requests administrator authentication through the system dialog, and installs `/etc/apparmor.d/second-brain` for this project's Electron and packaged executables. Electron's sandbox remains enabled. If you move the project, rerun both installers.
+
 ## Desktop companion
 
 - Drag the brain bubble in any direction, to any screen edge or monitor; its position is remembered. Linux uses a dock-style companion window and full display bounds so the bubble can reach the system-bar area. The desktop controls whether its own panel draws above the bubble.
 - The bubble tracks the native desktop cursor during a drag and keeps a fixed window size, including on displays with fractional scaling. Its transparent window cannot grow into an invisible overlay over the workspace.
 - If you lose the bubble, use **Settings → Show / reset bubble** or the tray menu to reveal it on the current monitor.
 - The bubble is 20% smaller, uses 70% opacity, and keeps its own zoom setting so workspace zoom cannot clip it.
+- Text is one point larger than the previous default. Use **Ctrl + +** (or Ctrl + =) to increase text by one point, and **Ctrl + -** to decrease it. The setting is remembered and changes text without zooming the brain bubble.
 - Toggle the sidebar with **Ctrl + E** or the sidebar button in the top bar. The collapsed menu keeps navigation icons available and remembers its state. While the app is focused, **Ctrl + 1** opens Records, **Ctrl + 2** Chat, **Ctrl + 3** Scheduler, and **Ctrl + 4** Learning guide.
 - Click the bubble or press **Ctrl + Shift + /** (Ctrl + ? on a US keyboard) to expand or collapse the workspace.
 - Select text in another app and press **Ctrl + Shift + .** (Ctrl + > on a US keyboard) to create a record immediately.

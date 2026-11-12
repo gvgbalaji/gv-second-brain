@@ -102,3 +102,49 @@ test("transactions roll back and interrupted background work is recoverable", ()
   s.db.close();
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test("LocalAM runtime adoption preserves other apps and refuses shared process groups", () => {
+  const { registerRuntime } = require("./local-manager.cjs");
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "brain-localam-"));
+  try {
+    fs.writeFileSync(
+      path.join(directory, "apps.json"),
+      JSON.stringify([
+        {
+          id: "brain",
+          name: "Second Brain",
+          appType: "desktop",
+          command: "cd /projects/gv-second-brain && npm start",
+        },
+      ]),
+    );
+    const other = { pid: 123, pgid: 123, startedAt: "earlier" };
+    fs.writeFileSync(
+      path.join(directory, "state.json"),
+      JSON.stringify({ other }),
+    );
+    registerRuntime(directory, 500, 400)();
+    assert.deepEqual(
+      JSON.parse(fs.readFileSync(path.join(directory, "state.json"))),
+      { other },
+    );
+    const cleanup = registerRuntime(directory, 500, 500);
+    let state = JSON.parse(fs.readFileSync(path.join(directory, "state.json")));
+    assert.equal(state.brain.pid, 500);
+    assert.deepEqual(state.other, other);
+    state.brain.pid = 600;
+    fs.writeFileSync(path.join(directory, "state.json"), JSON.stringify(state));
+    cleanup();
+    assert.equal(
+      JSON.parse(fs.readFileSync(path.join(directory, "state.json"))).brain.pid,
+      600,
+    );
+    registerRuntime(directory, 700, 700)();
+    assert.deepEqual(
+      JSON.parse(fs.readFileSync(path.join(directory, "state.json"))),
+      { other },
+    );
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});

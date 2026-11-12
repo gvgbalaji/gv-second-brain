@@ -20,6 +20,7 @@ const child = spawn(
   [
     ...(process.platform === "linux" ? ["--ozone-platform=x11"] : []),
     ".",
+    "--background",
     `--remote-debugging-port=${port}`,
   ],
   {
@@ -112,6 +113,26 @@ try {
     );
     assert.match(info, /Second Brain/);
   }
+  assert.equal(
+    (await invoke("snapshot")).system.workspaceVisible,
+    false,
+    "Login startup keeps the workspace hidden",
+  );
+  execFileSync(
+    electron,
+    [
+      ...(process.platform === "linux" ? ["--ozone-platform=x11"] : []),
+      ".",
+      "--background",
+    ],
+    { env: { ...process.env, BRAIN_DATA_DIR: dir }, timeout: 10000 },
+  );
+  await delay(100);
+  assert.equal(
+    (await invoke("snapshot")).system.workspaceVisible,
+    false,
+    "Duplicate background launch does not open the workspace",
+  );
   await invoke("resetBubble");
   const originalBubbleBounds = (await invoke("snapshot")).system.bubble.bounds;
   for (let step = 0; step < 40; step++)
@@ -206,8 +227,64 @@ try {
     `parseFloat(getComputedStyle(document.documentElement).fontSize)`,
   );
   assert.ok(
-    Math.abs(rootFont - (14 + (2 * 96) / 72)) < 0.02,
-    "Default font increased by two points",
+    Math.abs(rootFont - (14 + (3 * 96) / 72)) < 0.02,
+    "Default font increased by three points",
+  );
+  const baseTextSize = await evaluate(
+    `parseFloat(getComputedStyle(document.querySelector(".app")).fontSize)`,
+  );
+  await call("Input.dispatchKeyEvent", {
+    type: "keyDown",
+    key: "+",
+    code: "Equal",
+    modifiers: 10,
+    windowsVirtualKeyCode: 187,
+  });
+  await call("Input.dispatchKeyEvent", {
+    type: "keyUp",
+    key: "+",
+    code: "Equal",
+    modifiers: 10,
+    windowsVirtualKeyCode: 187,
+  });
+  await waitFor(
+    () => evaluate(`localStorage.getItem("brain.fontPoints") === "4"`),
+    "Ctrl++ increases text by one point",
+  );
+  assert.ok(
+    Math.abs(
+      (await evaluate(
+        `parseFloat(getComputedStyle(document.querySelector(".app")).fontSize)`,
+      )) -
+        baseTextSize -
+        96 / 72,
+    ) < 0.02,
+  );
+  await call("Page.reload");
+  await waitFor(
+    () =>
+      evaluate(
+        `!!document.querySelector(".app") && document.querySelector(".app").style.getPropertyValue("--font-increase") === "4pt"`,
+      ),
+    "Text size persists after reload",
+  );
+  await call("Input.dispatchKeyEvent", {
+    type: "keyDown",
+    key: "-",
+    code: "Minus",
+    modifiers: 2,
+    windowsVirtualKeyCode: 189,
+  });
+  await call("Input.dispatchKeyEvent", {
+    type: "keyUp",
+    key: "-",
+    code: "Minus",
+    modifiers: 2,
+    windowsVirtualKeyCode: 189,
+  });
+  await waitFor(
+    () => evaluate(`localStorage.getItem("brain.fontPoints") === "3"`),
+    "Ctrl+- decreases text by one point",
   );
   const bubblePage = (
     await (await fetch(`http://127.0.0.1:${port}/json`)).json()

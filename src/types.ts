@@ -78,6 +78,7 @@ export type Snapshot = {
 declare global {
   interface Window {
     brain: Record<string, (...args: any[]) => Promise<any>> & {
+      onFontAdjust: (callback: (direction: number) => void) => () => void;
       onChange: (callback: () => void) => () => void;
       onNotice: (callback: (message: string) => void) => () => void;
     };

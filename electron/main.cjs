@@ -22,6 +22,7 @@ const { BrainService } = require("./service.cjs");
 const { stopAll } = require("./codex.cjs");
 const { DEFAULT_MODEL, modelOptions } = require("./models.cjs");
 const { installGnomeShortcuts } = require("./shortcuts.cjs");
+const { trackLocalManager } = require("./local-manager.cjs");
 const { randomUUID } = require("node:crypto");
 const BUBBLE_SIZE = 66;
 let main,
@@ -33,6 +34,7 @@ let main,
   bubbleDrag,
   bubbleDragTimer,
   controlServer,
+  stopLocalManagerTracking,
   shortcutStatus = {},
   shortcutBackend = "Starting",
   shortcutError = "",
@@ -60,6 +62,7 @@ else {
   app.on("second-instance", (_event, argv) => {
     if (argv.includes("--brain-capture")) void capture();
     else if (argv.includes("--brain-toggle")) toggle();
+    else if (argv.includes("--background")) revealBubble();
     else {
       showMain();
       revealBubble();
@@ -73,6 +76,8 @@ else {
     if (process.platform === "linux")
       app.setDesktopName("second-brain.desktop");
     createWindows();
+    if (!process.env.BRAIN_DATA_DIR)
+      stopLocalManagerTracking = trackLocalManager();
     await startShortcutControl();
     void registerShortcuts();
     createTray();
@@ -91,6 +96,11 @@ else {
     clearInterval(timer);
     globalShortcut.unregisterAll();
     stopAll();
+    try {
+      stopLocalManagerTracking?.();
+    } catch (error) {
+      console.warn(error.message);
+    }
     clearInterval(bubbleDragTimer);
     controlServer?.close();
   });
@@ -129,6 +139,16 @@ function createWindows() {
     autoHideMenuBar: true,
     webPreferences: prefs,
   });
+  main.webContents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown" || !(input.control || input.meta) || input.alt)
+      return;
+    const increase = ["+", "=", "Add"].includes(input.key);
+    const decrease = ["-", "Subtract"].includes(input.key);
+    if (increase || decrease) {
+      event.preventDefault();
+      main.webContents.send("brain:font-adjust", increase ? 1 : -1);
+    }
+  });
   main.on("close", (e) => {
     if (!quitting) {
       e.preventDefault();
@@ -136,7 +156,11 @@ function createWindows() {
     }
   });
   main.once("ready-to-show", () => {
-    if (!process.argv.includes("--brain-capture")) main.show();
+    if (
+      !process.argv.includes("--brain-capture") &&
+      !process.argv.includes("--background")
+    )
+      main.show();
   });
   load(main, "app");
   bubble = new BrowserWindow({
@@ -456,6 +480,7 @@ handler("snapshot", () => ({
     shortcutBackend,
     shortcutError,
     platform: process.platform,
+    workspaceVisible: main.isVisible(),
     bubble: {
       visible: bubble.isVisible(),
       bounds: bubble.getBounds(),

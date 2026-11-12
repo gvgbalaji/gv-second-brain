@@ -16,7 +16,7 @@
   --surface: #fff;
   --soft: #f2effa;
   --radius: 12px;
-  --font-increase: 2pt;
+  --font-increase: 3pt;
 }
 * {
   box-sizing: border-box;
@@ -2115,4 +2115,8 @@ html:has(.bubble-shell) {
   .sidebar-note {
     display: none;
   }
+}
+
+.app {
+  font-size: calc(14px + var(--font-increase));
 }

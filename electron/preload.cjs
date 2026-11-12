@@ -51,4 +51,9 @@ api.onNotice = (callback) => {
   ipcRenderer.on("brain:notice", fn);
   return () => ipcRenderer.removeListener("brain:notice", fn);
 };
+api.onFontAdjust = (callback) => {
+  const fn = (_event, direction) => callback(direction);
+  ipcRenderer.on("brain:font-adjust", fn);
+  return () => ipcRenderer.removeListener("brain:font-adjust", fn);
+};
 contextBridge.exposeInMainWorld("brain", api);

@@ -273,6 +273,11 @@ function App() {
   const [data, setData] = useState<Snapshot | null>(null),
     [tab, setTab] = useState("Records"),
     [query, setQuery] = useState(""),
+    [fontPoints, setFontPoints] = useState(() => {
+      const saved = localStorage.getItem("brain.fontPoints");
+      const value = saved === null ? 3 : Number(saved);
+      return Number.isFinite(value) ? Math.min(12, Math.max(0, value)) : 3;
+    }),
     [sidebarCollapsed, setSidebarCollapsed] = useState(
       () => localStorage.getItem("brain.sidebarCollapsed") === "true",
     ),
@@ -297,10 +302,35 @@ function App() {
     } | null>(null);
   const chatEnd = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    localStorage.setItem("brain.fontPoints", String(fontPoints));
+  }, [fontPoints]);
+  useEffect(
+    () =>
+      api.onFontAdjust((direction) =>
+        setFontPoints((current) =>
+          Math.min(12, Math.max(0, current + direction)),
+        ),
+      ),
+    [],
+  );
+  useEffect(() => {
     localStorage.setItem("brain.sidebarCollapsed", String(sidebarCollapsed));
   }, [sidebarCollapsed]);
   useEffect(() => {
     const shortcuts = (event: KeyboardEvent) => {
+      if (
+        event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey &&
+        ["+", "=", "-"].includes(event.key)
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        setFontPoints((current) =>
+          Math.min(12, Math.max(0, current + (event.key === "-" ? -1 : 1))),
+        );
+        return;
+      }
       if (
         !event.ctrlKey ||
         event.altKey ||
@@ -458,7 +488,10 @@ function App() {
     "Learning guide": "Follow your curiosity.",
   };
   return (
-    <div className={`app ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+    <div
+      className={`app ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}
+      style={{ "--font-increase": `${fontPoints}pt` } as React.CSSProperties}
+    >
       <aside
         className="sidebar"
         id="workspace-sidebar"
@@ -2244,6 +2277,10 @@ function SettingsDialog({
         )}
         <div className="settings-shortcuts">
           <h3>Workspace shortcuts</h3>
+          <p>
+            <span>Increase / decrease text size</span>
+            <kbd>Ctrl++ / Ctrl+-</kbd>
+          </p>
           <p>
             <span>Toggle sidebar</span>
             <kbd>Ctrl + E</kbd>
