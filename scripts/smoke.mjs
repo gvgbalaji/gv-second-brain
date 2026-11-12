@@ -113,6 +113,25 @@ try {
     assert.match(info, /Second Brain/);
   }
   await invoke("resetBubble");
+  const originalBubbleBounds = (await invoke("snapshot")).system.bubble.bounds;
+  for (let step = 0; step < 40; step++)
+    await invoke("moveBubble", {
+      x: 400 + (step % 5) * 8,
+      y: 400 + (step % 7) * 8,
+    });
+  const movedBubbleBounds = (await invoke("snapshot")).system.bubble.bounds;
+  assert.ok(
+    movedBubbleBounds.width <= originalBubbleBounds.width + 2 &&
+      movedBubbleBounds.height <= originalBubbleBounds.height + 2,
+    "Repeated bubble moves must not grow its transparent window and block app buttons",
+  );
+  assert.ok(movedBubbleBounds.width < 100 && movedBubbleBounds.height < 100);
+  await invoke("moveBubble", { x: 400, y: 0 });
+  const topPosition = await invoke("bubblePosition");
+  assert.ok(
+    topPosition.y <= 2,
+    "Bubble may move into the system bar area at the top of the display",
+  );
   if (process.platform === "linux") {
     await invoke("collapse");
     execFileSync(

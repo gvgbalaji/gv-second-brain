@@ -206,56 +206,30 @@ function Empty({
   );
 }
 function Bubble() {
-  const drag = useRef<{
-    x: number;
-    y: number;
-    startX: number;
-    startY: number;
-    moved: boolean;
-    ready: boolean;
-  } | null>(null);
   return (
     <div className="bubble-shell">
       <button
         className="brain-bubble"
         aria-label="Open or collapse Second Brain. Drag to move."
         title="Second Brain · Ctrl+?"
-        onPointerDown={async (e) => {
-          e.currentTarget.setPointerCapture(e.pointerId);
-          const x = e.screenX,
-            y = e.screenY;
-          const gesture = {
-            x: 0,
-            y: 0,
-            startX: x,
-            startY: y,
-            moved: false,
-            ready: false,
-          };
-          drag.current = gesture;
-          const pos = await api.bubblePosition();
-          if (drag.current === gesture)
-            Object.assign(gesture, pos, { ready: true });
-        }}
-        onPointerMove={(e) => {
-          const d = drag.current;
-          if (!d) return;
-          const dx = e.screenX - d.startX,
-            dy = e.screenY - d.startY;
-          if (Math.abs(dx) + Math.abs(dy) > 4) d.moved = true;
-          if (d.moved && d.ready)
-            void api.moveBubble({ x: d.x + dx, y: d.y + dy });
+        onPointerDown={(event) => {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          event.currentTarget.setPointerCapture(event.pointerId);
+          void api.beginBubbleDrag();
         }}
         onPointerUp={() => {
-          if (drag.current && !drag.current.moved) void api.toggle();
-          drag.current = null;
+          void api.endBubbleDrag(true);
         }}
         onPointerCancel={() => {
-          drag.current = null;
+          void api.endBubbleDrag(false);
         }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
+        onLostPointerCapture={() => {
+          void api.endBubbleDrag(false);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
             void api.toggle();
           }
         }}

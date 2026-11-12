@@ -46,7 +46,8 @@ Open **Settings** to set an absolute Codex executable path if desktop apps canno
 
 ## Desktop companion
 
-- Drag the brain bubble to any screen edge or monitor; its position is remembered.
+- Drag the brain bubble in any direction, to any screen edge or monitor; its position is remembered. Linux uses a dock-style companion window and full display bounds so the bubble can reach the system-bar area. The desktop controls whether its own panel draws above the bubble.
+- The bubble tracks the native desktop cursor during a drag and keeps a fixed window size, including on displays with fractional scaling. Its transparent window cannot grow into an invisible overlay over the workspace.
 - If you lose the bubble, use **Settings → Show / reset bubble** or the tray menu to reveal it on the current monitor.
 - The bubble is 20% smaller, uses 70% opacity, and keeps its own zoom setting so workspace zoom cannot clip it.
 - Toggle the sidebar with **Ctrl + E** or the sidebar button in the top bar. The collapsed menu keeps navigation icons available and remembers its state. While the app is focused, **Ctrl + 1** opens Records, **Ctrl + 2** Chat, **Ctrl + 3** Scheduler, and **Ctrl + 4** Learning guide.

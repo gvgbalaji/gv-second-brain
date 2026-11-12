@@ -30,6 +30,8 @@ let main,
   store,
   service,
   timer,
+  bubbleDrag,
+  bubbleDragTimer,
   controlServer,
   shortcutStatus = {},
   shortcutBackend = "Starting",
@@ -89,6 +91,7 @@ else {
     clearInterval(timer);
     globalShortcut.unregisterAll();
     stopAll();
+    clearInterval(bubbleDragTimer);
     controlServer?.close();
   });
 }
@@ -141,6 +144,7 @@ function createWindows() {
     height: BUBBLE_SIZE,
     useContentSize: true,
     title: "Second Brain Bubble",
+    type: process.platform === "linux" ? "dock" : undefined,
     show: false,
     frame: false,
     transparent: true,
@@ -173,7 +177,7 @@ function createWindows() {
   load(bubble, "bubble");
   bubble.on("moved", () => {
     const [x, y] = bubble.getPosition();
-    store.setSetting("bubblePosition", { x, y });
+    if (!bubbleDrag) store.setSetting("bubblePosition", { x, y });
   });
   for (const win of [main, bubble]) {
     win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
@@ -203,11 +207,11 @@ function toggle() {
   if (main.isVisible() && !main.isMinimized()) main.hide();
   else showMain();
 }
-function placeBubble(position) {
+function placeBubble(position, persist = true) {
   const saved = position || store.setting("bubblePosition", null);
   const area = saved
-    ? screen.getDisplayNearestPoint(saved).workArea
-    : screen.getPrimaryDisplay().workArea;
+    ? screen.getDisplayNearestPoint(saved).bounds
+    : screen.getPrimaryDisplay().bounds;
   const x = Math.min(
     Math.max(saved?.x ?? area.x + area.width - 100, area.x),
     area.x + area.width - BUBBLE_SIZE,
@@ -216,8 +220,63 @@ function placeBubble(position) {
     Math.max(saved?.y ?? area.y + area.height - 150, area.y),
     area.y + area.height - BUBBLE_SIZE,
   );
-  bubble.setPosition(Math.round(x), Math.round(y));
-  store.setSetting("bubblePosition", { x: Math.round(x), y: Math.round(y) });
+  // Always supply the intended size: setPosition can round-trip inflated dimensions
+  // through the XWayland fractional-scale conversion and grow a transparent overlay.
+  bubble.setBounds({
+    x: Math.round(x),
+    y: Math.round(y),
+    width: BUBBLE_SIZE,
+    height: BUBBLE_SIZE,
+  });
+  if (persist)
+    store.setSetting("bubblePosition", { x: Math.round(x), y: Math.round(y) });
+}
+function updateBubbleDrag() {
+  if (!bubbleDrag || !bubble || bubble.isDestroyed()) return;
+  const cursor = screen.getCursorScreenPoint();
+  const dx = cursor.x - bubbleDrag.cursor.x;
+  const dy = cursor.y - bubbleDrag.cursor.y;
+  if (Math.abs(dx) + Math.abs(dy) > 4) bubbleDrag.moved = true;
+  if (
+    !bubbleDrag.moved ||
+    (cursor.x === bubbleDrag.last.x && cursor.y === bubbleDrag.last.y)
+  )
+    return;
+  bubbleDrag.last = cursor;
+  placeBubble(
+    { x: bubbleDrag.position.x + dx, y: bubbleDrag.position.y + dy },
+    false,
+  );
+}
+function startBubbleDrag() {
+  clearInterval(bubbleDragTimer);
+  const cursor = screen.getCursorScreenPoint();
+  const [x, y] = bubble.getPosition();
+  bubbleDrag = {
+    cursor,
+    last: cursor,
+    position: { x, y },
+    moved: false,
+    started: Date.now(),
+  };
+  bubbleDragTimer = setInterval(() => {
+    if (!bubbleDrag || Date.now() - bubbleDrag.started > 30000) {
+      finishBubbleDrag(false);
+      return;
+    }
+    updateBubbleDrag();
+  }, 16);
+}
+function finishBubbleDrag(toggleIfClick = true) {
+  if (!bubbleDrag) return;
+  updateBubbleDrag();
+  const moved = bubbleDrag.moved;
+  bubbleDrag = null;
+  clearInterval(bubbleDragTimer);
+  bubbleDragTimer = null;
+  const [x, y] = bubble.getPosition();
+  store.setSetting("bubblePosition", { x, y });
+  if (!moved && toggleIfClick) toggle();
 }
 function shortcutSocket() {
   return path.join(app.getPath("userData"), "desktop-shortcuts.sock");
@@ -409,6 +468,8 @@ handler("toggle", toggle);
 handler("resetBubble", () => revealBubble(true));
 handler("quit", () => app.quit());
 handler("collapse", () => main.hide());
+handler("beginBubbleDrag", startBubbleDrag);
+handler("endBubbleDrag", finishBubbleDrag);
 handler("moveBubble", (p) => {
   if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return;
   placeBubble(p);

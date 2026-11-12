@@ -6,6 +6,8 @@ const methods = [
   "quit",
   "collapse",
   "moveBubble",
+  "beginBubbleDrag",
+  "endBubbleDrag",
   "bubblePosition",
   "capture",
   "saveRecord",
